@@ -116,7 +116,6 @@ fun IntervalTimePicker(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.Center
     ) {
-        // Hours Block
         TimeInputBlock(
             value = hours,
             onValueChange = { if (it.length <= 2 && it.all { c -> c.isDigit() }) onHoursChange(it) },
@@ -124,7 +123,6 @@ fun IntervalTimePicker(
             enabled = enabled
         )
 
-        // The Colon separator
         Text(
             text = ":",
             fontSize = 40.sp,
@@ -133,15 +131,9 @@ fun IntervalTimePicker(
             color = MaterialTheme.colorScheme.onSurface
         )
 
-        // Minutes Block
         TimeInputBlock(
             value = minutes,
-            onValueChange = {
-                if (it.length <= 2 && it.all { c -> c.isDigit() }) {
-                    // Optional: Don't allow > 59 if you want strict validation here
-                    onMinutesChange(it)
-                }
-            },
+            onValueChange = { if (it.length <= 2 && it.all { c -> c.isDigit() }) onMinutesChange(it) },
             label = "MIN",
             enabled = enabled
         )
@@ -157,11 +149,10 @@ private fun TimeInputBlock(
 ) {
     var isFocused by remember { mutableStateOf(false) }
 
-    // Colors based on state (mimicking the image)
     val backgroundColor = when {
         !enabled -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-        isFocused -> MaterialTheme.colorScheme.primaryContainer // Light Purple when active
-        else -> MaterialTheme.colorScheme.surfaceVariant // Light Gray when inactive
+        isFocused -> MaterialTheme.colorScheme.primaryContainer
+        else -> MaterialTheme.colorScheme.surfaceVariant
     }
 
     val textColor = if (isFocused) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
@@ -169,7 +160,7 @@ private fun TimeInputBlock(
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Box(
             modifier = Modifier
-                .size(96.dp, 80.dp) // Size of the block
+                .size(96.dp, 80.dp)
                 .clip(RoundedCornerShape(12.dp))
                 .background(backgroundColor)
                 .border(
@@ -180,7 +171,7 @@ private fun TimeInputBlock(
             contentAlignment = Alignment.Center
         ) {
             BasicTextField(
-                value = value.padStart(2, '0'), // Always show 07 instead of 7
+                value = value, // FIX: Removed .padStart(2, '0')
                 onValueChange = onValueChange,
                 enabled = enabled,
                 textStyle = TextStyle(
@@ -194,14 +185,30 @@ private fun TimeInputBlock(
                 singleLine = true,
                 modifier = Modifier
                     .onFocusChanged { isFocused = it.isFocused }
-                    .fillMaxWidth()
+                    .fillMaxWidth(),
+                decorationBox = { innerTextField ->
+                    Box(contentAlignment = Alignment.Center) {
+                        // Show "00" hint if empty
+                        if (value.isEmpty()) {
+                            Text(
+                                text = "00",
+                                style = TextStyle(
+                                    fontSize = 48.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = textColor.copy(alpha = 0.3f),
+                                    textAlign = TextAlign.Center
+                                )
+                            )
+                        }
+                        innerTextField()
+                    }
+                }
             )
         }
         Spacer(modifier = Modifier.height(4.dp))
         Text(text = label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
-
 // --- Updated Previews ---
 
 @Preview(showBackground = true)
