@@ -3,6 +3,7 @@ package dev.vaibhav.posturepal.presentation
 import android.content.Intent
 import android.os.Build
 import android.provider.Settings
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
@@ -19,7 +20,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import dev.vaibhav.posturepal.utils.AlarmUtils
 
-// 1. Stateful Composable: Now accepts theme params
 @Composable
 fun PosturePalScreen(
     modifier: Modifier = Modifier,
@@ -30,20 +30,39 @@ fun PosturePalScreen(
 
     // State
     var isEnabled by remember { mutableStateOf(false) }
-    var intervalText by remember { mutableStateOf("30") }
-    var hasExactAlarmPermission by remember { mutableStateOf(AlarmUtils.checkExactAlarmPermission(context)) }
 
-    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) {
-        hasExactAlarmPermission = AlarmUtils.checkExactAlarmPermission(context)
+    // Split interval into Hours and Minutes
+    var hoursText by remember { mutableStateOf("00") }
+    var minutesText by remember { mutableStateOf("30") }
+
+    var hasExactAlarmPermission by remember {
+        mutableStateOf(
+            AlarmUtils.checkExactAlarmPermission(
+                context
+            )
+        )
     }
 
+    val launcher =
+        rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) {
+            hasExactAlarmPermission = AlarmUtils.checkExactAlarmPermission(context)
+        }
+
     val onToggleAlarm = { active: Boolean ->
-        isEnabled = active
-        val mins = intervalText.toIntOrNull() ?: 30
-        if (active) {
-            AlarmUtils.startAlarm(context, mins)
+        val h = hoursText.toIntOrNull() ?: 0
+        val m = minutesText.toIntOrNull() ?: 30
+        val totalMinutes = (h * 60) + m
+
+        if (totalMinutes <= 0) {
+            Toast.makeText(context, "Please set a valid time > 0 mins", Toast.LENGTH_SHORT).show()
+            // Don't enable the switch
         } else {
-            AlarmUtils.cancelAlarm(context)
+            isEnabled = active
+            if (active) {
+                AlarmUtils.startAlarm(context, totalMinutes)
+            } else {
+                AlarmUtils.cancelAlarm(context)
+            }
         }
     }
 
@@ -57,17 +76,18 @@ fun PosturePalScreen(
     PosturePalContent(
         modifier = modifier,
         isEnabled = isEnabled,
-        intervalText = intervalText,
+        hoursText = hoursText,
+        minutesText = minutesText,
         hasPermission = hasExactAlarmPermission,
-        isDarkTheme = isDarkTheme,       // Pass down
-        onThemeToggle = onThemeToggle,   // Pass down
-        onIntervalChange = { intervalText = it },
+        isDarkTheme = isDarkTheme,
+        onThemeToggle = onThemeToggle,
+        onHoursChange = { hoursText = it },
+        onMinutesChange = { minutesText = it },
         onToggleAlarm = onToggleAlarm,
         onGrantPermission = onGrantPermission
     )
 }
 
-// 2. Stateless Composable: UI Layout
 @Composable
 fun PosturePalContent(
     modifier: Modifier = Modifier,
@@ -82,14 +102,13 @@ fun PosturePalContent(
     onToggleAlarm: (Boolean) -> Unit,
     onGrantPermission: () -> Unit
 ) {
-    // We use a Box so we can overlay the Icon at the TopRight
     Box(modifier = modifier.fillMaxSize()) {
 
-        // --- 1. The Theme Toggle Icon (Top Right) ---
+        // Theme Toggle Icon
         IconButton(
             onClick = onThemeToggle,
             modifier = Modifier
-                .align(Alignment.TopEnd) // Positions it at Top Right
+                .align(Alignment.TopEnd)
                 .padding(16.dp)
         ) {
             Icon(
@@ -98,15 +117,22 @@ fun PosturePalContent(
             )
         }
 
-        // --- 2. The Main Content (Centered) ---
+        // Main Content
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(24.dp), // Add padding so it doesn't overlap the icon
+                .padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
             Text("Posture Pal", fontSize = 32.sp, style = MaterialTheme.typography.headlineMedium)
+
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                "Set your break interval",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
 
             Spacer(modifier = Modifier.height(32.dp))
 
@@ -115,6 +141,7 @@ fun PosturePalContent(
                 Spacer(modifier = Modifier.height(24.dp))
             }
 
+            // --- New Custom Interval Picker ---
             IntervalTimePicker(
                 hours = hoursText,
                 minutes = minutesText,
@@ -122,8 +149,9 @@ fun PosturePalContent(
                 onMinutesChange = onMinutesChange,
                 enabled = !isEnabled && hasPermission
             )
+            // ----------------------------------
 
-            Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(48.dp))
 
             AlarmStatusToggle(
                 isActive = isEnabled,
@@ -136,46 +164,10 @@ fun PosturePalContent(
                 // Calculate display string for feedback
                 val h = hoursText.toIntOrNull() ?: 0
                 val m = minutesText.toIntOrNull() ?: 0
-                val totalStr = if(h > 0) "$h hr $m min" else "$m min"
+                val totalStr = if (h > 0) "$h hr $m min" else "$m min"
 
                 Text("Alarm set for every $totalStr", color = MaterialTheme.colorScheme.primary)
             }
         }
-    }
-}
-
-// --- Previews ---
-
-@Preview(showBackground = true, name = "Light Mode")
-@Composable
-fun ScreenLightPreview() {
-    MaterialTheme(colorScheme = lightColorScheme()) {
-        PosturePalContent(
-            isEnabled = true,
-            intervalText = "45",
-            hasPermission = true,
-            isDarkTheme = false,
-            onThemeToggle = {},
-            onIntervalChange = {},
-            onToggleAlarm = {},
-            onGrantPermission = {}
-        )
-    }
-}
-
-@Preview(showBackground = true, backgroundColor = 0xFF121212, name = "Dark Mode")
-@Composable
-fun ScreenDarkPreview() {
-    MaterialTheme(colorScheme = darkColorScheme()) {
-        PosturePalContent(
-            isEnabled = false,
-            intervalText = "30",
-            hasPermission = true,
-            isDarkTheme = true,
-            onThemeToggle = {},
-            onIntervalChange = {},
-            onToggleAlarm = {},
-            onGrantPermission = {}
-        )
     }
 }
