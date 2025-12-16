@@ -1,10 +1,27 @@
 package dev.vaibhav.posturepal.presentation
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -77,6 +94,127 @@ fun AlarmStatusToggle(
             checked = isActive,
             enabled = isEnabled,
             onCheckedChange = onToggle
+        )
+    }
+}
+
+/**
+ * A custom Time Picker style input for Intervals (Hours : Minutes).
+ * Mimics the visual style of Android's TimePicker but for duration.
+ */
+@Composable
+fun IntervalTimePicker(
+    hours: String,
+    minutes: String,
+    onHoursChange: (String) -> Unit,
+    onMinutesChange: (String) -> Unit,
+    enabled: Boolean,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier,
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.Center
+    ) {
+        // Hours Block
+        TimeInputBlock(
+            value = hours,
+            onValueChange = { if (it.length <= 2 && it.all { c -> c.isDigit() }) onHoursChange(it) },
+            label = "HR",
+            enabled = enabled
+        )
+
+        // The Colon separator
+        Text(
+            text = ":",
+            fontSize = 40.sp,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(horizontal = 12.dp),
+            color = MaterialTheme.colorScheme.onSurface
+        )
+
+        // Minutes Block
+        TimeInputBlock(
+            value = minutes,
+            onValueChange = {
+                if (it.length <= 2 && it.all { c -> c.isDigit() }) {
+                    // Optional: Don't allow > 59 if you want strict validation here
+                    onMinutesChange(it)
+                }
+            },
+            label = "MIN",
+            enabled = enabled
+        )
+    }
+}
+
+@Composable
+private fun TimeInputBlock(
+    value: String,
+    onValueChange: (String) -> Unit,
+    label: String,
+    enabled: Boolean
+) {
+    var isFocused by remember { mutableStateOf(false) }
+
+    // Colors based on state (mimicking the image)
+    val backgroundColor = when {
+        !enabled -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+        isFocused -> MaterialTheme.colorScheme.primaryContainer // Light Purple when active
+        else -> MaterialTheme.colorScheme.surfaceVariant // Light Gray when inactive
+    }
+
+    val textColor = if (isFocused) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
+
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Box(
+            modifier = Modifier
+                .size(96.dp, 80.dp) // Size of the block
+                .clip(RoundedCornerShape(12.dp))
+                .background(backgroundColor)
+                .border(
+                    width = if (isFocused) 2.dp else 0.dp,
+                    color = if (isFocused) MaterialTheme.colorScheme.primary else Color.Transparent,
+                    shape = RoundedCornerShape(12.dp)
+                ),
+            contentAlignment = Alignment.Center
+        ) {
+            BasicTextField(
+                value = value.padStart(2, '0'), // Always show 07 instead of 7
+                onValueChange = onValueChange,
+                enabled = enabled,
+                textStyle = TextStyle(
+                    fontSize = 48.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = textColor,
+                    textAlign = TextAlign.Center
+                ),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                cursorBrush = SolidColor(textColor),
+                singleLine = true,
+                modifier = Modifier
+                    .onFocusChanged { isFocused = it.isFocused }
+                    .fillMaxWidth()
+            )
+        }
+        Spacer(modifier = Modifier.height(4.dp))
+        Text(text = label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}
+
+// --- Updated Previews ---
+
+@Preview(showBackground = true)
+@Composable
+fun IntervalPickerPreview() {
+    MaterialTheme {
+        IntervalTimePicker(
+            hours = "01",
+            minutes = "30",
+            onHoursChange = {},
+            onMinutesChange = {},
+            enabled = true,
+            modifier = Modifier.padding(24.dp)
         )
     }
 }

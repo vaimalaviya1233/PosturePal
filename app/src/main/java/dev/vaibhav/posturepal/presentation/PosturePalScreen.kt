@@ -72,11 +72,13 @@ fun PosturePalScreen(
 fun PosturePalContent(
     modifier: Modifier = Modifier,
     isEnabled: Boolean,
-    intervalText: String,
+    hoursText: String,
+    minutesText: String,
     hasPermission: Boolean,
     isDarkTheme: Boolean,
     onThemeToggle: () -> Unit,
-    onIntervalChange: (String) -> Unit,
+    onHoursChange: (String) -> Unit,
+    onMinutesChange: (String) -> Unit,
     onToggleAlarm: (Boolean) -> Unit,
     onGrantPermission: () -> Unit
 ) {
@@ -113,9 +115,11 @@ fun PosturePalContent(
                 Spacer(modifier = Modifier.height(24.dp))
             }
 
-            IntervalInputField(
-                value = intervalText,
-                onValueChange = onIntervalChange,
+            IntervalTimePicker(
+                hours = hoursText,
+                minutes = minutesText,
+                onHoursChange = onHoursChange,
+                onMinutesChange = onMinutesChange,
                 enabled = !isEnabled && hasPermission
             )
 
@@ -129,7 +133,12 @@ fun PosturePalContent(
 
             if (isEnabled) {
                 Spacer(modifier = Modifier.height(16.dp))
-                Text("Looping every $intervalText mins.")
+                // Calculate display string for feedback
+                val h = hoursText.toIntOrNull() ?: 0
+                val m = minutesText.toIntOrNull() ?: 0
+                val totalStr = if(h > 0) "$h hr $m min" else "$m min"
+
+                Text("Alarm set for every $totalStr", color = MaterialTheme.colorScheme.primary)
             }
         }
     }
