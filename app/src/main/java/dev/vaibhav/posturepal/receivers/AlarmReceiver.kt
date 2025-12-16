@@ -1,6 +1,8 @@
 package dev.vaibhav.posturepal.receivers
 
 import android.app.AlarmManager
+import android.app.NotificationChannel
+import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.Context
@@ -11,9 +13,40 @@ import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.os.PowerManager
+import androidx.core.app.NotificationCompat
 import java.util.Calendar
 
 class AlarmReceiver : BroadcastReceiver() {
+
+    // Inside onReceive, before playing sound:
+    private fun showNotification(context: Context) {
+        val channelId = "posture_channel"
+        val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+
+        // 1. Create Channel (Required for Android 8+)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channel = NotificationChannel(
+                channelId,
+                "Posture Reminders",
+                NotificationManager.IMPORTANCE_HIGH // High importance makes it pop up
+            ).apply {
+                description = "Reminds you to stand up"
+            }
+            notificationManager.createNotificationChannel(channel)
+        }
+
+        // 2. Build Notification
+        val notification = NotificationCompat.Builder(context, channelId)
+            .setSmallIcon(android.R.drawable.ic_lock_idle_alarm) // Use your own icon here
+            .setContentTitle("Time to Stretch!")
+            .setContentText("Take a break from the screen.")
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setAutoCancel(true)
+            .build()
+
+        // 3. Show it
+        notificationManager.notify(1, notification)
+    }
 
     override fun onReceive(context: Context, intent: Intent) {
         // 1. Acquire WakeLock to keep CPU running for the sound duration (5s)
@@ -24,6 +57,8 @@ class AlarmReceiver : BroadcastReceiver() {
         wakeLock.acquire(6000L)
 
         try {
+            // show notification
+            showNotification(context)
             // 2. Play Sound
             playAlarmSound(context)
 
@@ -34,14 +69,26 @@ class AlarmReceiver : BroadcastReceiver() {
             // WakeLock is usually released by timeout here since sound is async,
             // but relying on the 6s timeout is safe for this simple use case.
         }
+
     }
 
     private fun playAlarmSound(context: Context) {
         try {
-            val notification = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
-            val mp = MediaPlayer.create(context, notification)
-            mp.start()
+            val notification = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
+//            val mp = MediaPlayer.create(context, notification)
+//            mp.start()
 
+            val mp = MediaPlayer().apply {
+                setDataSource(context, notification)
+                setAudioAttributes(
+                    android.media.AudioAttributes.Builder()
+                        .setUsage(android.media.AudioAttributes.USAGE_ALARM) // Critical for DND handling
+                        .setContentType(android.media.AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                        .build()
+                )
+                prepare()
+                start()
+            }
             // Stop after 5 seconds
             Handler(Looper.getMainLooper()).postDelayed({
                 try {
